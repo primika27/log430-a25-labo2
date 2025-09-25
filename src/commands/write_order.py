@@ -117,6 +117,8 @@ def sync_all_orders_to_redis():
             # mysql
             orders_from_mysql = []
             for order in orders_from_mysql:
+
+                
                 # TODO: terminez l'implementation
                 print(order)
             rows_added = len(orders_from_mysql)
