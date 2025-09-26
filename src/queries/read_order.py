@@ -20,12 +20,26 @@ def get_orders_from_mysql(limit=9999):
 
 def get_orders_from_redis(limit=9999):
     """Get last X orders"""
-    # TODO: écrivez la méthode
-    print(limit)
-    return []
+    r = get_redis_conn()
+    order_keys = r.keys("order:*")
+    main_order_keys = [key for key in order_keys if ":item:" not in key]
+    main_order_keys = main_order_keys[:limit]
+    orders = []
+    for key in main_order_keys:
+        order_data = r.hgetall(key)
+        orders.append(order_data)
+    return orders
 
 def get_highest_spending_users():
-    """Get report of best selling products"""
-    # TODO: écrivez la méthode
-    # triez le résultat par nombre de commandes (ordre décroissant)
-    return []
+    """Get highest spending users from Redis"""
+    r = get_redis_conn()
+    order_keys = r.keys("order:*")
+    main_order_keys = [key for key in order_keys if ":item:" not in key]
+    user_spending = {}
+    for key in main_order_keys:
+        order = r.hgetall(key)
+        user_id = order.get("user_id")
+        total = float(order.get("total_amount", 0))
+        user_spending[user_id] = user_spending.get(user_id, 0) + total
+    sorted_users = sorted(user_spending.items(), key=lambda x: x[1], reverse=True)
+    return sorted_users

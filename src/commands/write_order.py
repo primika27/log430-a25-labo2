@@ -100,11 +100,30 @@ def delete_order(order_id: int):
 def add_order_to_redis(order_id, user_id, total_amount, items):
     """Insert order to Redis"""
     r = get_redis_conn()
-    print(r)
+    order_key = f"order:{order_id}"
+    order_data = {
+        "id": order_id,
+        "user_id": user_id,
+        "total_amount": total_amount
+    }
+    r.hset(order_key, mapping=order_data)
+
+    for i, item in enumerate(items):
+        item_key = f"order:{order_id}:item:{i+1}"
+        item_data = {
+            "product_id": item["product_id"],
+            "quantity": item["quantity"],
+            "unit_price": item.get("unit_price", 0)
+        }
+        r.hset(item_key, mapping=item_data)
 
 def delete_order_from_redis(order_id):
     """Delete order from Redis"""
-    pass
+    r = get_redis_conn()
+    r.delete(f"order:{order_id}")
+    item_keys = r.keys(f"order:{order_id}:item:*")
+    for key in item_keys:
+        r.delete(key)
 
 def sync_all_orders_to_redis():
     """ Sync orders from MySQL to Redis """
@@ -115,17 +134,32 @@ def sync_all_orders_to_redis():
     try:
         if len(orders_in_redis) == 0:
             # mysql
-            orders_from_mysql = []
+            orders_from_mysql = get_orders_from_mysql();
             for order in orders_from_mysql:
-
-                
-                # TODO: terminez l'implementation
-                print(order)
+                order_key = f"order:{order.id}"
+                order_data = {
+                    "id": order.id,
+                    "user_id": order.user_id,
+                    "total_amount": order.total_amount
+                }
+                r.hset(order_key, order_data)
             rows_added = len(orders_from_mysql)
+        
+            for order in orders_from_mysql:
+                order_items = []
+                for item in order.items:
+                    order_items.append({
+                        "product_id": item.product_id,
+                        "quantity": item.quantity,
+                        "unit_price": item.unit_price
+                    })
+                r.hset(f"order:{order.id}", "items", str(order_items))
+
+            rows_added = len(orders_from_mysql)
+            print(f"{rows_added} orders synchronized to Redis.")
         else:
             print('Redis already contains orders, no need to sync!')
     except Exception as e:
         print(e)
         return 0
-    finally:
-        return len(orders_in_redis) + rows_added
+    return rows_added
