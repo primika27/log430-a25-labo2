@@ -26,6 +26,7 @@ def add_order(user_id: int, items: list):
     try:
         products_query = session.query(Product).filter(Product.id.in_(product_ids)).all()
         price_map = {product.id: product.price for product in products_query}
+        name_map = {product.id: product.name for product in products_query}
         total_amount = 0
         order_items_data = []
         
@@ -40,13 +41,15 @@ def add_order(user_id: int, items: list):
                 raise ValueError(f"Article ID {pid} n'est pas dans la base de données.")
 
             unit_price = price_map[pid]
+            product_name = name_map[pid]
             total_amount += unit_price * qty
             order_items_data.append({
                 'product_id': pid,
+                'product_name': product_name,
                 'quantity': qty,
                 'unit_price': unit_price
             })
-        
+         
         new_order = Order(user_id=user_id, total_amount=total_amount)
         session.add(new_order)
         session.flush() 
@@ -64,8 +67,8 @@ def add_order(user_id: int, items: list):
 
         session.commit()
 
-        # TODO: ajouter la commande à Redis
-        add_order_to_redis(order_id, user_id, total_amount, items)
+        # Ajout complet dans Redis avec nom du produit
+        add_order_to_redis(order_id, user_id, total_amount, order_items_data)
 
         return order_id
 
@@ -112,6 +115,7 @@ def add_order_to_redis(order_id, user_id, total_amount, items):
         item_key = f"order:{order_id}:item:{i+1}"
         item_data = {
             "product_id": item["product_id"],
+            "product_name": item.get("product_name", ""),
             "quantity": item["quantity"],
             "unit_price": item.get("unit_price", 0)
         }
@@ -150,6 +154,7 @@ def sync_all_orders_to_redis():
                 for item in order.items:
                     order_items.append({
                         "product_id": item.product_id,
+                        "product_name": item.product_name,
                         "quantity": item.quantity,
                         "unit_price": item.unit_price
                     })

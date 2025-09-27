@@ -31,7 +31,7 @@ def get_orders_from_redis(limit=9999):
     return orders
 
 def get_highest_spending_users():
-    """Get highest spending users from Redis"""
+    """Get top 10 highest spending users from Redis"""
     r = get_redis_conn()
     order_keys = r.keys("order:*")
     main_order_keys = [key for key in order_keys if ":item:" not in key]
@@ -40,6 +40,8 @@ def get_highest_spending_users():
         order = r.hgetall(key)
         user_id = order.get("user_id")
         total = float(order.get("total_amount", 0))
-        user_spending[user_id] = user_spending.get(user_id, 0) + total
+        if user_id:
+            user_spending[user_id] = user_spending.get(user_id, 0) + total
+    # Sort and return top 10
     sorted_users = sorted(user_spending.items(), key=lambda x: x[1], reverse=True)
-    return sorted_users
+    return sorted_users[:10]
