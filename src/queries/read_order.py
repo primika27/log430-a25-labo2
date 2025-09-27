@@ -45,3 +45,17 @@ def get_highest_spending_users():
     # Sort and return top 10
     sorted_users = sorted(user_spending.items(), key=lambda x: x[1], reverse=True)
     return sorted_users[:10]
+
+def get_best_selling_products():
+    """Retourne la liste des articles les plus vendus, triée par quantité vendue (décroissant)"""
+    r = get_redis_conn()
+    # Récupère toutes les clés de produits ayant des ventes
+    product_keys = r.keys("product:*")
+    product_sales = []
+    for key in product_keys:
+        product_id = key.split(":")[1]
+        quantity = int(r.get(key) or 0)
+        product_sales.append((product_id, quantity))
+    # Trie par quantité vendue décroissante
+    product_sales_sorted = sorted(product_sales, key=lambda x: x[1], reverse=True)
+    return product_sales_sorted

@@ -55,7 +55,8 @@ def add_order(user_id: int, items: list):
         session.flush() 
         
         order_id = new_order.id
-
+        r = get_redis_conn()
+        # Met à jour les ventes de produits dans Redis
         for item_data in order_items_data:
             order_item = OrderItem(
                 order_id=order_id,
@@ -63,6 +64,7 @@ def add_order(user_id: int, items: list):
                 quantity=item_data['quantity'],
                 unit_price=item_data['unit_price']
             )
+            r.incr(f"product:{item_data['product_id']}", item_data['quantity'])
             session.add(order_item)
 
         session.commit()
